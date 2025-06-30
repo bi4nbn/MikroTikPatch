@@ -2,9 +2,9 @@ name: Patch Mikrotik RouterOS 7.x
 on:
    push:
      branches: [ "main" ]
-  schedule:
+   schedule:
     - cron: "0 0 * * *" # At UTC 00:00 on every day
-  workflow_dispatch:
+   workflow_dispatch:
     inputs:
       arch:
         description: 'Architecture (x86, arm64)'
