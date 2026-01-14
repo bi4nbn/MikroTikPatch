@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="en" class="scroll-smooth">
 <head>
@@ -230,15 +231,15 @@
                              </label>
                         </div>
                     </div>
-                </div>
-                <!-- Command display area with copy button -->
-                <div id="command-container" class="relative bg-slate-900 dark:bg-black/50 p-4 text-sm">
-                    <button id="copy-btn" class="absolute top-3 right-3 p-1.5 bg-slate-700 hover:bg-slate-600 rounded-md text-slate-300 hover:text-white transition-colors">
-                        <span class="sr-only">Copy command</span>
-                        <span class="iconify text-lg copy-icon" data-icon="ph:copy-bold"></span>
-                        <span class="iconify text-lg check-icon hidden" data-icon="ph:check-bold"></span>
-                    </button>
-                    <div id="command"></div>
+                    <!-- Command display area with copy button -->
+                    <div id="command-container" class="relative bg-slate-900 dark:bg-black/50 p-4 text-sm">
+                        <button id="copy-btn" class="absolute top-3 right-3 p-1.5 bg-slate-700 hover:bg-slate-600 rounded-md text-slate-300 hover:text-white transition-colors">
+                            <span class="sr-only">Copy command</span>
+                            <span class="iconify text-lg copy-icon" data-icon="ph:copy-bold"></span>
+                            <span class="iconify text-lg check-icon hidden" data-icon="ph:check-bold"></span>
+                        </button>
+                        <div id="command"></div>
+                    </div>
                 </div>
             </div>
 
@@ -467,10 +468,10 @@
             // Fetch latest version numbers from MikroTik servers
             const loadingOverlay = document.getElementById("loading");
             const [routeros7_stable, routeros7_testing, routeros6_longterm, routeros6_stable] = await Promise.all([
-                fetch_latest_versions("https://upgrade.mikrotik.ltd/routeros/NEWESTa7.stable", "7.19.4"),
-                fetch_latest_versions("https://upgrade.mikrotik.ltd/routeros/NEWESTa7.testing", "7.20rc1"),
-                fetch_latest_versions("https://upgrade.mikrotik.ltd/routeros/NEWEST6.long-term", "6.49.18"),
-                fetch_latest_versions("https://upgrade.mikrotik.ltd/routeros/NEWEST6.stable", "6.49.19"),
+                fetch_latest_versions(`https://upgrade.mikrotik.ltd/routeros/NEWESTa7.stable?ts=${Date.now()}`, "7.19.4"),
+                fetch_latest_versions(`https://upgrade.mikrotik.ltd/routeros/NEWESTa7.testing?ts=${Date.now()}`, "7.20rc1"),
+                fetch_latest_versions(`https://upgrade.mikrotik.ltd/routeros/NEWEST6.long-term?ts=${Date.now()}`, "6.49.18"),
+                fetch_latest_versions(`https://upgrade.mikrotik.ltd/routeros/NEWEST6.stable?ts=${Date.now()}`, "6.49.19"),
             ]);
             // Hide loading overlay and remove loading class
             loadingOverlay.style.display = "none";
@@ -610,6 +611,10 @@
             // GitHub proxy functionality
             const ghProxyCheckbox = document.getElementById("gh-proxy");
             const clearCacheBtn = document.getElementById("clear-cache");
+            if (localStorage.getItem("gh-proxy-enabled") === null && navigator.language.startsWith("zh")) {
+                // Enable GitHub proxy by default for Chinese users
+                localStorage.setItem("gh-proxy-enabled", "true");
+            }
             ghProxyCheckbox.checked = localStorage.getItem("gh-proxy-enabled") === "true";
             clearCacheBtn.style.display = ghProxyCheckbox.checked ? "inline-flex" : "none";
             
@@ -627,7 +632,7 @@
                 });
                 // Update command display if a version is selected
                 const activeBtn = document.querySelector("#version-buttons button.active");
-                if (activeBtn) updateCommand(activeBtn.dataset.version);
+                activeBtn ? updateCommand(activeBtn.dataset.version) : updateCommand();
             }
 
             // GitHub proxy toggle event listener
@@ -762,10 +767,10 @@
             // Update command display based on selected tool and version
             function updateCommand(version) {
                 const tool = document.querySelector('input[name="tool"]:checked').value;
-                const proxy = localStorage.getItem("gh-proxy-enabled") === "true" ? " | <span class='text-blue-400'>sed</span> <span class='text-orange-400'>'s#https://github.com#https://gh-proxy.com/https://github.com#g'</span>" : "";
+                const _version = version===undefined?"": `<span class="text-green-500 font-semibold">VERSION</span>=<span class="text-yellow-400">${version}</span> `
                 const cmd = tool === "curl" 
-                    ? `<pre class="text-slate-300"><code><span class="text-green-400">VERSION</span>=<span class="text-pink-400">${version}</span> <span class="text-blue-400">bash</span> \<(<span class="text-blue-400">curl</span> <span class="text-cyan-400">https://mikrotik.ltd/chr.sh</span>${proxy})</code></pre>`
-                    : `<pre class="text-slate-300"><code><span class="text-green-400">VERSION</span>=<span class="text-pink-400">${version}</span> <span class="text-blue-400">bash</span> \<(<span class="text-blue-400">wget -O - </span><span class="text-cyan-400">https://mikrotik.ltd/chr.sh</span>${proxy})</code></pre>`;
+                    ? `<pre class="text-slate-300"><code>${_version}<span class="text-blue-400 font-bold">bash</span> <span class="text-pink-400">&lt;(</span><span class="text-blue-400 font-bold">curl</span> <span class="text-teal-400">https://mikrotik.ltd/chr.sh</span><span class="text-pink-400">)</span></code></pre>`
+                    : `<pre class="text-slate-300"><code>${_version}<span class="text-blue-400 font-bold">bash</span> <span class="text-pink-400">&lt;(</span><span class="text-blue-400 font-bold">wget -O - </span><span class="text-teal-400">https://mikrotik.ltd/chr.sh</span><span class="text-pink-400">)</span></code></pre>`;
                 commandDiv.innerHTML = cmd;
             }
 
@@ -773,7 +778,7 @@
             document.querySelectorAll('input[name="tool"]').forEach(radio => {
                 radio.addEventListener("change", () => {
                     const activeBtn = document.querySelector("#version-buttons button.active");
-                    if (activeBtn) updateCommand(activeBtn.dataset.version);
+                    activeBtn ? updateCommand(activeBtn.dataset.version) : updateCommand();
                 });
             });
 
@@ -782,12 +787,18 @@
             buttons.forEach(btn => {
                 btn.addEventListener("click", (e) => {
                     e.preventDefault();
-                    updateCommand(btn.dataset.version);
-                    buttons.forEach(b => b.classList.remove("active"));
-                    btn.classList.add("active");
+                    if (btn.classList.contains("active")) {
+                        updateCommand();
+                        btn.classList.remove("active");
+                    }else{
+                        updateCommand(btn.dataset.version);
+                        buttons.forEach(b => b.classList.remove("active"));
+                        btn.classList.add("active");
+                    }
+
                 });
             });
-            buttons[0].click(); // Select first button by default
+            updateCommand();
             
             // Copy command to clipboard functionality
             copyBtn.addEventListener("click", () => {
